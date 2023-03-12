@@ -31,8 +31,18 @@ from io import BytesIO
 def main():
     st.set_page_config(page_title="王之言测试demo")
     st.title('王之言测试demo')
+
     st.markdown('<br>',unsafe_allow_html=True)
     st.markdown('<br>',unsafe_allow_html=True)
+    form1 = st.form(key='my_form1')  # key是form的关键字，不同form的key不能相同
+    seed = form1.text_input("wirte seed here!")
+    max_length = form1.text_input("wirte max_length here!")
+    input = form1.text_input("wirte input here!")
+    submit_button = form1.form_submit_button(label='Submit')
+    if submit_button:
+        res=get_result(seed, max_length, input)
+        st.json(res)
+
     charts_mapping={
         'Line':'line_chart','Bar':'bar_chart','Area':'area_chart','Hist':'pyplot','Altair':'altair_chart',
         'Map':'map','Distplot':'plotly_chart','Pdk':'pydeck_chart','Graphviz':'graphviz_chart','PyEchart':''
@@ -283,6 +293,14 @@ def get_city_mapping():
                 flag=False
 
     return city_mapping,guangzhou
+@st.cache(ttl=3600)
+def get_result(seed,max_length,input):
+    url = 'http://180.184.50.70:21881/gpt2'
+    headers = {'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'}
+    data = {"seed": seed, "max_length": max_length,"input":input}
+    r = requests.post(url, headers=headers, json=data)
+    result = r.json()
+    return result
 
 @st.cache(ttl=3600)
 def get_city_weather(cityId):
