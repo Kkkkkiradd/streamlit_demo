@@ -29,8 +29,8 @@ from io import BytesIO
 
 
 def main():
-    st.set_page_config(page_title="七里香还是稻香",page_icon=":rainbow:",layout="wide",initial_sidebar_state="auto")
-    st.title('七里香还是稻香:heart:')
+    st.set_page_config(page_title="王之言测试demo")
+    st.title('王之言测试demo')
     st.markdown('<br>',unsafe_allow_html=True)
     st.markdown('<br>',unsafe_allow_html=True)
     charts_mapping={
@@ -151,10 +151,7 @@ def main():
 
     st.markdown('<br>',unsafe_allow_html=True)
     st.markdown('<br>',unsafe_allow_html=True)
-    st.markdown('### About Me')
-    with open('README.md','r') as f:
-        readme=f.read()
-    st.markdown(readme)
+
 
     st.markdown('<br>',unsafe_allow_html=True)
     st.markdown('<br>',unsafe_allow_html=True)
