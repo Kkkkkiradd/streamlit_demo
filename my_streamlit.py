@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 import streamlit.components.v1 as components
+import streamlit_chat
 from streamlit_echarts import st_echarts
 
 from streamlit.server.server import Server
@@ -23,25 +24,33 @@ from pyecharts.charts import *
 from pyecharts.globals import ThemeType
 from pyecharts import options as opts
 from pyecharts.commons.utils import JsCode
-
+from streamlit_chat import message
 from PIL import Image
 from io import BytesIO
-
 
 def main():
     st.set_page_config(page_title="王之言测试demo")
     st.title('王之言测试demo')
-
     st.markdown('<br>',unsafe_allow_html=True)
     st.markdown('<br>',unsafe_allow_html=True)
+    placeholder = st.empty()
     form1 = st.form(key='my_form1')  # key是form的关键字，不同form的key不能相同
     seed = form1.text_input("wirte seed here!")
     max_length = form1.text_input("wirte max_length here!")
     input = form1.text_input("wirte input here!")
     submit_button = form1.form_submit_button(label='Submit')
     if submit_button:
-        res=get_result(seed, max_length, input)
-        st.json(res)
+        with placeholder.container():
+            st.session_state.pastInput.append(input)
+            for i in range(0,len(st.session_state['pastReply'])):
+                message(st.session_state['pastInput'][i], is_user=True, key='user' + str(i))
+                message(st.session_state['pastReply'][i], key=str(i))
+            message(st.session_state['pastInput'][len(st.session_state['pastInput']) - 1], is_user=True,
+                    key='user' + str(len(st.session_state['pastInput']) - 1))
+            with st.spinner('Wait for it...'):
+                reply=get_result(seed, max_length, input)['output'].replace(u'&nbsp;', u'').replace('&', '').strip()
+                st.session_state.pastReply.append(reply)
+                message(st.session_state['pastReply'][len(st.session_state['pastInput'])-1],key=str(len(st.session_state['pastInput'])-1))
 
     charts_mapping={
         'Line':'line_chart','Bar':'bar_chart','Area':'area_chart','Hist':'pyplot','Altair':'altair_chart',
@@ -54,6 +63,8 @@ def main():
     # 初始化全局配置
     if st.session_state.first_visit:
         # 在这里可以定义任意多个全局变量，方便程序进行调用
+        st.session_state.pastInput=[]
+        st.session_state.pastReply = []
         st.session_state.date_time=datetime.datetime.now() + datetime.timedelta(hours=8) # Streamlit Cloud的时区是UTC，加8小时即北京时间
         st.session_state.random_chart_index=random.choice(range(len(charts_mapping)))
         st.session_state.my_random=MyRandom(random.randint(1,1000000))
@@ -76,66 +87,66 @@ def main():
     color = st.sidebar.color_picker('Pick A Color You Like', '#520520')
     st.sidebar.write('The current color is', color)
 
-    with st.container():
-        st.markdown(f'### {city} Weather Forecast')
-        forecastToday,df_forecastHours,df_forecastDays=get_city_weather(st.session_state.city_mapping[city])
-        col1,col2,col3,col4,col5,col6=st.columns(6)
-        col1.metric('Weather',forecastToday['weather'])
-        col2.metric('Temperature',forecastToday['temp'])
-        col3.metric('Body Temperature',forecastToday['realFeel'])
-        col4.metric('Humidity',forecastToday['humidity'])
-        col5.metric('Wind',forecastToday['wind'])
-        col6.metric('UpdateTime',forecastToday['updateTime'])
-        c1 = (
-            Line()
-            .add_xaxis(df_forecastHours.index.to_list())
-            .add_yaxis('Temperature', df_forecastHours.Temperature.values.tolist())
-            .add_yaxis('Body Temperature', df_forecastHours['Body Temperature'].values.tolist())
-            .set_global_opts(
-                title_opts=opts.TitleOpts(title="24 Hours Forecast"),
-                xaxis_opts=opts.AxisOpts(type_="category"),
-                yaxis_opts=opts.AxisOpts(type_="value",axislabel_opts=opts.LabelOpts(formatter="{value} °C")),
-                tooltip_opts=opts.TooltipOpts(trigger="axis", axis_pointer_type="cross")
-                )
-            .set_series_opts(label_opts=opts.LabelOpts(formatter=JsCode("function(x){return x.data[1] + '°C';}")))
-        )
+    # with st.container():
+    #     st.markdown(f'### {city} Weather Forecast')
+    #     forecastToday,df_forecastHours,df_forecastDays=get_city_weather(st.session_state.city_mapping[city])
+    #     col1,col2,col3,col4,col5,col6=st.columns(6)
+    #     col1.metric('Weather',forecastToday['weather'])
+    #     col2.metric('Temperature',forecastToday['temp'])
+    #     col3.metric('Body Temperature',forecastToday['realFeel'])
+    #     col4.metric('Humidity',forecastToday['humidity'])
+    #     col5.metric('Wind',forecastToday['wind'])
+    #     col6.metric('UpdateTime',forecastToday['updateTime'])
+    #     c1 = (
+    #         Line()
+    #         .add_xaxis(df_forecastHours.index.to_list())
+    #         .add_yaxis('Temperature', df_forecastHours.Temperature.values.tolist())
+    #         .add_yaxis('Body Temperature', df_forecastHours['Body Temperature'].values.tolist())
+    #         .set_global_opts(
+    #             title_opts=opts.TitleOpts(title="24 Hours Forecast"),
+    #             xaxis_opts=opts.AxisOpts(type_="category"),
+    #             yaxis_opts=opts.AxisOpts(type_="value",axislabel_opts=opts.LabelOpts(formatter="{value} °C")),
+    #             tooltip_opts=opts.TooltipOpts(trigger="axis", axis_pointer_type="cross")
+    #             )
+    #         .set_series_opts(label_opts=opts.LabelOpts(formatter=JsCode("function(x){return x.data[1] + '°C';}")))
+    #     )
+    #
+    #     c2 = (
+    #         Line()
+    #         .add_xaxis(xaxis_data=df_forecastDays.index.to_list())
+    #         .add_yaxis(series_name="High Temperature",y_axis=df_forecastDays.Temperature.apply(lambda x:int(x.replace('°C','').split('~')[1])))
+    #         .add_yaxis(series_name="Low Temperature",y_axis=df_forecastDays.Temperature.apply(lambda x:int(x.replace('°C','').split('~')[0])))
+    #         .set_global_opts(
+    #             title_opts=opts.TitleOpts(title="7 Days Forecast"),
+    #             xaxis_opts=opts.AxisOpts(type_="category"),
+    #             yaxis_opts=opts.AxisOpts(type_="value",axislabel_opts=opts.LabelOpts(formatter="{value} °C")),
+    #             tooltip_opts=opts.TooltipOpts(trigger="axis", axis_pointer_type="cross")
+    #             )
+    #         .set_series_opts(label_opts=opts.LabelOpts(formatter=JsCode("function(x){return x.data[1] + '°C';}")))
+    #     )
+    #
+    #     t = Timeline(init_opts=opts.InitOpts(theme=ThemeType.LIGHT,width='1200px'))
+    #     t.add_schema(play_interval=10000,is_auto_play=True)
+    #     t.add(c1, "24 Hours Forecast")
+    #     t.add(c2, "7 Days Forecast")
+    #     components.html(t.render_embed(), width=1200, height=520)
+    #     with st.expander("24 Hours Forecast Data"):
+    #         st.table(df_forecastHours.style.format({'Temperature':'{}°C','Body Temperature':'{}°C','Humidity':'{}%'}))
+    #     with st.expander("7 Days Forecast Data",expanded=True):
+    #         st.table(df_forecastDays)
 
-        c2 = (
-            Line()
-            .add_xaxis(xaxis_data=df_forecastDays.index.to_list())
-            .add_yaxis(series_name="High Temperature",y_axis=df_forecastDays.Temperature.apply(lambda x:int(x.replace('°C','').split('~')[1])))
-            .add_yaxis(series_name="Low Temperature",y_axis=df_forecastDays.Temperature.apply(lambda x:int(x.replace('°C','').split('~')[0])))
-            .set_global_opts(
-                title_opts=opts.TitleOpts(title="7 Days Forecast"),
-                xaxis_opts=opts.AxisOpts(type_="category"),
-                yaxis_opts=opts.AxisOpts(type_="value",axislabel_opts=opts.LabelOpts(formatter="{value} °C")),
-                tooltip_opts=opts.TooltipOpts(trigger="axis", axis_pointer_type="cross")
-                )
-            .set_series_opts(label_opts=opts.LabelOpts(formatter=JsCode("function(x){return x.data[1] + '°C';}")))
-        )
-
-        t = Timeline(init_opts=opts.InitOpts(theme=ThemeType.LIGHT,width='1200px'))
-        t.add_schema(play_interval=10000,is_auto_play=True)
-        t.add(c1, "24 Hours Forecast")
-        t.add(c2, "7 Days Forecast")
-        components.html(t.render_embed(), width=1200, height=520)
-        with st.expander("24 Hours Forecast Data"):
-            st.table(df_forecastHours.style.format({'Temperature':'{}°C','Body Temperature':'{}°C','Humidity':'{}%'}))
-        with st.expander("7 Days Forecast Data",expanded=True):
-            st.table(df_forecastDays)
-
-    st.markdown(f'### {chart} Chart')
-    df=get_chart_data(chart,st.session_state.my_random)
-    eval(f'st.{charts_mapping[chart]}(df{",use_container_width=True" if chart in ["Distplot","Altair"] else ""})' if chart != 'PyEchart' else f'st_echarts(options=df)')
-
-    st.markdown('### Animal Pictures')
-    pictures=get_pictures(st.session_state.my_random)
-    if pictures:
-        col=st.columns(len(pictures))
-        for idx,(name,img) in enumerate(pictures.items()):
-            eval(f"col[{idx}].image(img, caption=name,use_column_width=True)")
-    else:
-        st.warning('Get pictures fail.')
+    # st.markdown(f'### {chart} Chart')
+    # df=get_chart_data(chart,st.session_state.my_random)
+    # eval(f'st.{charts_mapping[chart]}(df{",use_container_width=True" if chart in ["Distplot","Altair"] else ""})' if chart != 'PyEchart' else f'st_echarts(options=df)')
+    #
+    # st.markdown('### Animal Pictures')
+    # pictures=get_pictures(st.session_state.my_random)
+    # if pictures:
+    #     col=st.columns(len(pictures))
+    #     for idx,(name,img) in enumerate(pictures.items()):
+    #         eval(f"col[{idx}].image(img, caption=name,use_column_width=True)")
+    # else:
+    #     st.warning('Get pictures fail.')
 
     st.markdown('### Some Ads Videos')
     session_id = get_report_ctx().session_id
@@ -159,16 +170,16 @@ def main():
     # else:
     #     st.info('Please refresh the page.')
 
-    st.markdown('<br>',unsafe_allow_html=True)
-    st.markdown('<br>',unsafe_allow_html=True)
-
-
-    st.markdown('<br>',unsafe_allow_html=True)
-    st.markdown('<br>',unsafe_allow_html=True)
-    with st.expander("View Code"):
-        with open('my_streamlit.py','r') as f:
-            code=f.read()
-        st.code(code,language="python")
+    # st.markdown('<br>',unsafe_allow_html=True)
+    # st.markdown('<br>',unsafe_allow_html=True)
+    #
+    #
+    # st.markdown('<br>',unsafe_allow_html=True)
+    # st.markdown('<br>',unsafe_allow_html=True)
+    # with st.expander("View Code"):
+    #     with open('my_streamlit.py','r') as f:
+    #         code=f.read()
+    #     st.code(code,language="python")
 
 class MyRandom:
     def __init__(self,num):
@@ -296,9 +307,9 @@ def get_city_mapping():
 @st.cache(ttl=3600)
 def get_result(seed,max_length,input):
     url = 'http://180.184.50.70:21881/gpt2'
-    headers = {'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'}
-    data = {"seed": seed, "max_length": max_length,"input":input}
-    r = requests.post(url, headers=headers, json=data)
+    headers = {'Content-Type': 'application/json'}
+    data = {"seed": str(seed), "max_length": str(max_length),"input":str(input)}
+    r = requests.post(url, headers=headers, data=json.dumps(data))
     result = r.json()
     return result
 
